@@ -122,7 +122,7 @@ list.files(data_folder)
 # read all estimates
 #------------------------------------------------------------------------------
 
-# real all
+# read all
 model_estimates <- MplusAutomation::readModels(target = paste0(syntax_folder))
 
 # there should be 59 estimates models
