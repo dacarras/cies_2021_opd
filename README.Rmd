@@ -29,7 +29,7 @@ It covers the following steps:
   + Specify model
   + Fit as many models are needed
 - Process estimates
-  + Parse many output into readable objects
+  + Parse output into readable objects
 - Summarize results
   + Tables
   + Figure
