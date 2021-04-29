@@ -1,0 +1,613 @@
+---
+title: "Code 3: fit models"
+subtitle: "CIES 2021: not everyone has the chance"
+author: "dacarras"
+date: 'April 29th, 2021'
+output:
+  html_document:
+    theme: paper
+    highlight: kate
+    number_sections: true
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    fig_width: 10 
+    fig_height: 8 
+---
+
+
+<style>
+  .main-container {
+    max-width: 1600px !important;
+  }
+  .list-group-item.active, 
+  .list-group-item.active:focus, 
+  .list-group-item.active:hover {
+    background-color: #373334;
+  }
+</style>
+
+
+
+```{r setup, include=FALSE}
+#------------------------------------------------------------------------------
+# setup
+#------------------------------------------------------------------------------
+
+# knitr option
+knitr::opts_chunk$set(dev = 'png')
+options(knitr.kable.NA = '', digits = 2)
+
+# set appropiate time zone via OlsonNames()
+Sys.setenv(TZ="America/Santiago")
+Sys.getenv("TZ")
+Sys.time()
+
+# fonts
+Sys.setenv(LANG="en_US.UTF-8")
+
+# load main library
+library(dplyr)
+
+
+# ---------------------------------------------------------
+# get times
+# ---------------------------------------------------------
+
+start_time <- Sys.time()
+
+```
+
+
+# Libraries
+
+## What libraries are used in the present code
+
+```{r , echo=TRUE, warning=FALSE, eval = FALSE}
+
+#------------------------------------------------------------------------------
+# libraries
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# libraries for this code
+# ---------------------------------------------------------
+
+install.packages('tidyverse')
+# many libraries for data management
+
+install.packages('haven')     
+# library to open SPSS, STATA, and SAS files
+
+install.packages('labelled')     
+# library to add variable labels to data frames
+
+install.packages('devtools')  
+# to install developmental libraries
+
+install.packages('MplusAutomation')     
+# library to fit model in MPLUS from R
+
+devtools::install_github("dacarras/r4sda") 
+# experimental library for analysis of secondary data
+
+```
+
+
+
+# File Locations
+
+## Folders
+
+```{r , echo=TRUE, warning=FALSE}
+
+#------------------------------------------------------------------------------
+# folders
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# get local path from relative path
+# ---------------------------------------------------------
+
+local_path <- function(x){
+paste0(tools::file_path_as_absolute('..'),x)  
+}
+
+# Note: set current directory as working directory
+#       e.g. `setwd("/Users/d/cies_2021_opd/01_syntax/")`
+#       When a rmd file is run in Rstudio, current directory
+#       is the working directory.
+
+
+# ---------------------------------------------------------
+# relative position of folders
+# ---------------------------------------------------------
+
+# 00_data
+# 01_syntax
+# 02_mplus
+# 03_figures
+
+# ---------------------------------------------------------
+# folder with data files
+# ---------------------------------------------------------
+
+data_folder      <- local_path('/00_data/')
+syntax_folder    <- local_path('/01_syntax/')
+plot_folder      <- local_path('/02_figures/')
+
+# ---------------------------------------------------------
+# load main library
+# ---------------------------------------------------------
+
+library(dplyr)
+
+# ---------------------------------------------------------
+# check folder
+# ---------------------------------------------------------
+
+list.files(data_folder)
+
+```
+
+## Load files
+
+```{r , echo=TRUE}
+
+#------------------------------------------------------------------------------
+# load data
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# files
+# ---------------------------------------------------------
+
+opd_09 <- readRDS(paste0(data_folder, 'data_opd_09.rds')) %>%
+             r4sda::remove_labels()
+
+opd_16 <- readRDS(paste0(data_folder, 'data_opd_16.rds')) %>%
+             r4sda::remove_labels()
+
+# ----------------------------------------------- 
+# data frame dimensions
+# -----------------------------------------------
+
+data.frame(
+  data = c('iccs 2009', 'iccs 2016'),
+  rows = c(nrow(opd_09), nrow(opd_16)),
+  columns = c(ncol(opd_09), ncol(opd_16))
+  ) %>%
+knitr::kable(., digits = 2)
+
+
+# ----------------------------------------------- 
+# main library
+# -----------------------------------------------
+
+library(dplyr)
+
+```
+
+
+# General Mplus model
+
+## Data per country
+
+```{r , echo=TRUE}
+
+#---------------------------------------------------------------------------------------------------------
+# data per country
+#---------------------------------------------------------------------------------------------------------
+
+# ---------------------------------------- 
+# country table date 2009
+# ---------------------------------------- 
+
+dplyr::count(opd_09, IDCNTRY, COUNTRY) %>%
+knitr::kable(., format = 'markdown')
+
+# ---------------------------------------- 
+# data for 2009
+# ---------------------------------------- 
+
+opd_09_AUT <- dplyr::filter(opd_09, COUNTRY == 'AUT')
+opd_09_BGR <- dplyr::filter(opd_09, COUNTRY == 'BGR')
+opd_09_CHL <- dplyr::filter(opd_09, COUNTRY == 'CHL')
+opd_09_TWN <- dplyr::filter(opd_09, COUNTRY == 'TWN')
+opd_09_COL <- dplyr::filter(opd_09, COUNTRY == 'COL')
+opd_09_CYP <- dplyr::filter(opd_09, COUNTRY == 'CYP')
+opd_09_CZE <- dplyr::filter(opd_09, COUNTRY == 'CZE')
+opd_09_DNK <- dplyr::filter(opd_09, COUNTRY == 'DNK')
+opd_09_DOM <- dplyr::filter(opd_09, COUNTRY == 'DOM')
+opd_09_EST <- dplyr::filter(opd_09, COUNTRY == 'EST')
+opd_09_FIN <- dplyr::filter(opd_09, COUNTRY == 'FIN')
+opd_09_GRC <- dplyr::filter(opd_09, COUNTRY == 'GRC')
+opd_09_GTM <- dplyr::filter(opd_09, COUNTRY == 'GTM')
+opd_09_HKG <- dplyr::filter(opd_09, COUNTRY == 'HKG')
+opd_09_IDN <- dplyr::filter(opd_09, COUNTRY == 'IDN')
+opd_09_IRL <- dplyr::filter(opd_09, COUNTRY == 'IRL')
+opd_09_ITA <- dplyr::filter(opd_09, COUNTRY == 'ITA')
+opd_09_KOR <- dplyr::filter(opd_09, COUNTRY == 'KOR')
+opd_09_LVA <- dplyr::filter(opd_09, COUNTRY == 'LVA')
+opd_09_LIE <- dplyr::filter(opd_09, COUNTRY == 'LIE')
+
+# Note: LTU, LUX and MLT fitted models do not work well, due to having to few schools.
+#       Thus, are excluded from the present exercise.
+
+# opd_09_LTU <- dplyr::filter(opd_09, COUNTRY == 'LTU')
+# opd_09_LUX <- dplyr::filter(opd_09, COUNTRY == 'LUX')
+# opd_09_MLT <- dplyr::filter(opd_09, COUNTRY == 'MLT')
+
+opd_09_MEX <- dplyr::filter(opd_09, COUNTRY == 'MEX')
+opd_09_NLD <- dplyr::filter(opd_09, COUNTRY == 'NLD')
+opd_09_NZL <- dplyr::filter(opd_09, COUNTRY == 'NZL')
+opd_09_NOR <- dplyr::filter(opd_09, COUNTRY == 'NOR')
+opd_09_PRY <- dplyr::filter(opd_09, COUNTRY == 'PRY')
+opd_09_POL <- dplyr::filter(opd_09, COUNTRY == 'POL')
+opd_09_RUS <- dplyr::filter(opd_09, COUNTRY == 'RUS')
+opd_09_SVK <- dplyr::filter(opd_09, COUNTRY == 'SVK')
+opd_09_SVN <- dplyr::filter(opd_09, COUNTRY == 'SVN')
+opd_09_ESP <- dplyr::filter(opd_09, COUNTRY == 'ESP')
+opd_09_SWE <- dplyr::filter(opd_09, COUNTRY == 'SWE')
+opd_09_CHE <- dplyr::filter(opd_09, COUNTRY == 'CHE')
+opd_09_THA <- dplyr::filter(opd_09, COUNTRY == 'THA')
+opd_09_ENG <- dplyr::filter(opd_09, COUNTRY == 'ENG')
+opd_09_BFL <- dplyr::filter(opd_09, COUNTRY == 'BFL')
+
+
+# ---------------------------------------- 
+# country table date 2009
+# ---------------------------------------- 
+
+dplyr::count(opd_16, IDCNTRY, COUNTRY) %>%
+knitr::kable(., format = 'markdown')
+
+# ---------------------------------------- 
+# data for 2016
+# ---------------------------------------- 
+
+opd_16_BGR <- dplyr::filter(opd_16, COUNTRY == 'BGR')
+opd_16_CHL <- dplyr::filter(opd_16, COUNTRY == 'CHL')
+opd_16_TWN <- dplyr::filter(opd_16, COUNTRY == 'TWN')
+opd_16_COL <- dplyr::filter(opd_16, COUNTRY == 'COL')
+opd_16_HRV <- dplyr::filter(opd_16, COUNTRY == 'HRV')
+opd_16_DNK <- dplyr::filter(opd_16, COUNTRY == 'DNK')
+opd_16_DOM <- dplyr::filter(opd_16, COUNTRY == 'DOM')
+opd_16_EST <- dplyr::filter(opd_16, COUNTRY == 'EST')
+opd_16_FIN <- dplyr::filter(opd_16, COUNTRY == 'FIN')
+opd_16_HKG <- dplyr::filter(opd_16, COUNTRY == 'HKG')
+opd_16_ITA <- dplyr::filter(opd_16, COUNTRY == 'ITA')
+opd_16_KOR <- dplyr::filter(opd_16, COUNTRY == 'KOR')
+opd_16_LVA <- dplyr::filter(opd_16, COUNTRY == 'LVA')
+opd_16_LTU <- dplyr::filter(opd_16, COUNTRY == 'LTU')
+opd_16_MLT <- dplyr::filter(opd_16, COUNTRY == 'MLT')
+opd_16_MEX <- dplyr::filter(opd_16, COUNTRY == 'MEX')
+opd_16_NLD <- dplyr::filter(opd_16, COUNTRY == 'NLD')
+opd_16_NOR <- dplyr::filter(opd_16, COUNTRY == 'NOR')
+opd_16_PER <- dplyr::filter(opd_16, COUNTRY == 'PER')
+opd_16_RUS <- dplyr::filter(opd_16, COUNTRY == 'RUS')
+opd_16_SVN <- dplyr::filter(opd_16, COUNTRY == 'SVN')
+opd_16_SWE <- dplyr::filter(opd_16, COUNTRY == 'SWE')
+opd_16_BFL <- dplyr::filter(opd_16, COUNTRY == 'BFL')
+opd_16_DNW <- dplyr::filter(opd_16, COUNTRY == 'DNW')
+
+
+```
+
+
+## Example model
+
+- This model is not for interpretation.
+- We use Chile 2009, because we know it present large oportunity gap.
+
+```{r , echo=TRUE}
+
+#---------------------------------------------------------------------------------------------------------
+# specify model
+#---------------------------------------------------------------------------------------------------------
+
+library(MplusAutomation)
+oportunity_gap_model <- mplusObject(
+MODEL = '
+
+%WITHIN% 
+opd on ses_w (w);
+
+
+%BETWEEN%
+opd on ses_b (b);
+
+',
+ANALYSIS = '
+TYPE = TWOLEVEL COMPLEX;
+ESTIMATOR = MLR;
+',
+
+VARIABLE = '
+! variables with restricted variance
+WITHIN  = ses_w;
+BETWEEN = ses_b;
+
+!complex sample design
+STRATIFICATION = id_s;
+CLUSTER = id_j;
+
+!multilevel specification
+WEIGHT  = wi;
+BWEIGHT = wj;
+WTSCALE = ECLUSTER;
+BWTSCALE = SAMPLE;
+
+USEVARIABLES =
+opd
+ses_w
+ses_b
+;
+',
+MODELCONSTRAINT =
+'
+new (
+ce_w
+ce_b
+ce_c
+);
+
+!contextual effect of ses
+ce_w = w;
+ce_b = b;
+ce_c = b - w;
+',
+OUTPUT ='
+STAND
+TECH1
+TECH3
+SAMPSTAT
+CINTERVAL
+;
+',
+rdata = opd_09_CHL)
+
+
+# ---------------------------------------- 
+# fit models
+# ---------------------------------------- 
+
+fit_gap <- mplusModeler(oportunity_gap_model,
+              hashfilename = FALSE, 
+              modelout = 'fit_09_CHL.inp',
+              writeData = 'always', 
+              run = 1L)
+
+# ---------------------------------------- 
+# compare estimates
+# ---------------------------------------- 
+
+
+texreg::screenreg(list(fit_gap), 
+    type = 'un',
+    star.symbol = "\\*", 
+    center = TRUE, 
+    doctype = FALSE,
+    dcolumn = TRUE, 
+    booktabs = TRUE,
+    single.row=TRUE,
+    summaries = c("Observations"))
+
+
+```
+
+## Models by country 2009
+
+```{r , echo=TRUE}
+
+#---------------------------------------------------------------------------------------------------------
+# fit models 2009
+#---------------------------------------------------------------------------------------------------------
+
+# ---------------------------------------- 
+# update models
+# ---------------------------------------- 
+
+library(MplusAutomation)
+
+gap_09_AUT <- update(fit_gap, rdata = opd_09_AUT)
+gap_09_BGR <- update(fit_gap, rdata = opd_09_BGR)
+gap_09_CHL <- update(fit_gap, rdata = opd_09_CHL)
+gap_09_TWN <- update(fit_gap, rdata = opd_09_TWN)
+gap_09_COL <- update(fit_gap, rdata = opd_09_COL)
+gap_09_CYP <- update(fit_gap, rdata = opd_09_CYP)
+gap_09_CZE <- update(fit_gap, rdata = opd_09_CZE)
+gap_09_DNK <- update(fit_gap, rdata = opd_09_DNK)
+gap_09_DOM <- update(fit_gap, rdata = opd_09_DOM)
+gap_09_EST <- update(fit_gap, rdata = opd_09_EST)
+gap_09_FIN <- update(fit_gap, rdata = opd_09_FIN)
+gap_09_GRC <- update(fit_gap, rdata = opd_09_GRC)
+gap_09_GTM <- update(fit_gap, rdata = opd_09_GTM)
+gap_09_HKG <- update(fit_gap, rdata = opd_09_HKG)
+gap_09_IDN <- update(fit_gap, rdata = opd_09_IDN)
+gap_09_IRL <- update(fit_gap, rdata = opd_09_IRL)
+gap_09_ITA <- update(fit_gap, rdata = opd_09_ITA)
+gap_09_KOR <- update(fit_gap, rdata = opd_09_KOR)
+gap_09_LVA <- update(fit_gap, rdata = opd_09_LVA)
+gap_09_LIE <- update(fit_gap, rdata = opd_09_LIE)
+# gap_09_LTU <- update(fit_gap, rdata = opd_09_LTU)
+# gap_09_LUX <- update(fit_gap, rdata = opd_09_LUX)
+# gap_09_MLT <- update(fit_gap, rdata = opd_09_MLT)
+gap_09_MEX <- update(fit_gap, rdata = opd_09_MEX)
+gap_09_NLD <- update(fit_gap, rdata = opd_09_NLD)
+gap_09_NZL <- update(fit_gap, rdata = opd_09_NZL)
+gap_09_NOR <- update(fit_gap, rdata = opd_09_NOR)
+gap_09_PRY <- update(fit_gap, rdata = opd_09_PRY)
+gap_09_POL <- update(fit_gap, rdata = opd_09_POL)
+gap_09_RUS <- update(fit_gap, rdata = opd_09_RUS)
+gap_09_SVK <- update(fit_gap, rdata = opd_09_SVK)
+gap_09_SVN <- update(fit_gap, rdata = opd_09_SVN)
+gap_09_ESP <- update(fit_gap, rdata = opd_09_ESP)
+gap_09_SWE <- update(fit_gap, rdata = opd_09_SWE)
+gap_09_CHE <- update(fit_gap, rdata = opd_09_CHE)
+gap_09_THA <- update(fit_gap, rdata = opd_09_THA)
+gap_09_ENG <- update(fit_gap, rdata = opd_09_ENG)
+gap_09_BFL <- update(fit_gap, rdata = opd_09_BFL)
+
+# ---------------------------------------- 
+# fit models
+# ---------------------------------------- 
+
+fit_09_AUT <- mplusModeler(gap_09_AUT, modelout = 'fit_09_AUT.inp', run = 1L, hashfilename = FALSE)
+fit_09_BGR <- mplusModeler(gap_09_BGR, modelout = 'fit_09_BGR.inp', run = 1L, hashfilename = FALSE)
+fit_09_CHL <- mplusModeler(gap_09_CHL, modelout = 'fit_09_CHL.inp', run = 1L, hashfilename = FALSE)
+fit_09_TWN <- mplusModeler(gap_09_TWN, modelout = 'fit_09_TWN.inp', run = 1L, hashfilename = FALSE)
+fit_09_COL <- mplusModeler(gap_09_COL, modelout = 'fit_09_COL.inp', run = 1L, hashfilename = FALSE)
+fit_09_CYP <- mplusModeler(gap_09_CYP, modelout = 'fit_09_CYP.inp', run = 1L, hashfilename = FALSE)
+fit_09_CZE <- mplusModeler(gap_09_CZE, modelout = 'fit_09_CZE.inp', run = 1L, hashfilename = FALSE)
+fit_09_DNK <- mplusModeler(gap_09_DNK, modelout = 'fit_09_DNK.inp', run = 1L, hashfilename = FALSE)
+fit_09_DOM <- mplusModeler(gap_09_DOM, modelout = 'fit_09_DOM.inp', run = 1L, hashfilename = FALSE)
+fit_09_EST <- mplusModeler(gap_09_EST, modelout = 'fit_09_EST.inp', run = 1L, hashfilename = FALSE)
+fit_09_FIN <- mplusModeler(gap_09_FIN, modelout = 'fit_09_FIN.inp', run = 1L, hashfilename = FALSE)
+fit_09_GRC <- mplusModeler(gap_09_GRC, modelout = 'fit_09_GRC.inp', run = 1L, hashfilename = FALSE)
+fit_09_GTM <- mplusModeler(gap_09_GTM, modelout = 'fit_09_GTM.inp', run = 1L, hashfilename = FALSE)
+fit_09_HKG <- mplusModeler(gap_09_HKG, modelout = 'fit_09_HKG.inp', run = 1L, hashfilename = FALSE)
+fit_09_IDN <- mplusModeler(gap_09_IDN, modelout = 'fit_09_IDN.inp', run = 1L, hashfilename = FALSE)
+fit_09_IRL <- mplusModeler(gap_09_IRL, modelout = 'fit_09_IRL.inp', run = 1L, hashfilename = FALSE)
+fit_09_ITA <- mplusModeler(gap_09_ITA, modelout = 'fit_09_ITA.inp', run = 1L, hashfilename = FALSE)
+fit_09_KOR <- mplusModeler(gap_09_KOR, modelout = 'fit_09_KOR.inp', run = 1L, hashfilename = FALSE)
+fit_09_LVA <- mplusModeler(gap_09_LVA, modelout = 'fit_09_LVA.inp', run = 1L, hashfilename = FALSE)
+fit_09_LIE <- mplusModeler(gap_09_LIE, modelout = 'fit_09_LIE.inp', run = 1L, hashfilename = FALSE)
+
+# Note: LTU, LUX and MLT fitted models do not work well, due to having to few schools.
+#       Thus, are excluded from the present exercise.
+# fit_09_LTU <- mplusModeler(gap_09_LTU, modelout = 'fit_09_LTU.inp', run = 1L, hashfilename = FALSE)
+# fit_09_LUX <- mplusModeler(gap_09_LUX, modelout = 'fit_09_LUX.inp', run = 1L, hashfilename = FALSE)
+# fit_09_MLT <- mplusModeler(gap_09_MLT, modelout = 'fit_09_MLT.inp', run = 1L, hashfilename = FALSE)
+
+fit_09_MEX <- mplusModeler(gap_09_MEX, modelout = 'fit_09_MEX.inp', run = 1L, hashfilename = FALSE)
+fit_09_NLD <- mplusModeler(gap_09_NLD, modelout = 'fit_09_NLD.inp', run = 1L, hashfilename = FALSE)
+fit_09_NZL <- mplusModeler(gap_09_NZL, modelout = 'fit_09_NZL.inp', run = 1L, hashfilename = FALSE)
+fit_09_NOR <- mplusModeler(gap_09_NOR, modelout = 'fit_09_NOR.inp', run = 1L, hashfilename = FALSE)
+fit_09_PRY <- mplusModeler(gap_09_PRY, modelout = 'fit_09_PRY.inp', run = 1L, hashfilename = FALSE)
+fit_09_POL <- mplusModeler(gap_09_POL, modelout = 'fit_09_POL.inp', run = 1L, hashfilename = FALSE)
+fit_09_RUS <- mplusModeler(gap_09_RUS, modelout = 'fit_09_RUS.inp', run = 1L, hashfilename = FALSE)
+fit_09_SVK <- mplusModeler(gap_09_SVK, modelout = 'fit_09_SVK.inp', run = 1L, hashfilename = FALSE)
+fit_09_SVN <- mplusModeler(gap_09_SVN, modelout = 'fit_09_SVN.inp', run = 1L, hashfilename = FALSE)
+fit_09_ESP <- mplusModeler(gap_09_ESP, modelout = 'fit_09_ESP.inp', run = 1L, hashfilename = FALSE)
+fit_09_SWE <- mplusModeler(gap_09_SWE, modelout = 'fit_09_SWE.inp', run = 1L, hashfilename = FALSE)
+fit_09_CHE <- mplusModeler(gap_09_CHE, modelout = 'fit_09_CHE.inp', run = 1L, hashfilename = FALSE)
+fit_09_THA <- mplusModeler(gap_09_THA, modelout = 'fit_09_THA.inp', run = 1L, hashfilename = FALSE)
+fit_09_ENG <- mplusModeler(gap_09_ENG, modelout = 'fit_09_ENG.inp', run = 1L, hashfilename = FALSE)
+fit_09_BFL <- mplusModeler(gap_09_BFL, modelout = 'fit_09_BFL.inp', run = 1L, hashfilename = FALSE)
+
+```
+
+
+
+## Models by country 2016
+
+```{r , echo=TRUE}
+
+#---------------------------------------------------------------------------------------------------------
+# fit models 2016
+#---------------------------------------------------------------------------------------------------------
+
+# ---------------------------------------- 
+# update models
+# ---------------------------------------- 
+
+gap_16_BGR <- update(fit_gap, rdata = opd_16_BGR)
+gap_16_CHL <- update(fit_gap, rdata = opd_16_CHL)
+gap_16_TWN <- update(fit_gap, rdata = opd_16_TWN)
+gap_16_COL <- update(fit_gap, rdata = opd_16_COL)
+gap_16_HRV <- update(fit_gap, rdata = opd_16_HRV)
+gap_16_DNK <- update(fit_gap, rdata = opd_16_DNK)
+gap_16_DOM <- update(fit_gap, rdata = opd_16_DOM)
+gap_16_EST <- update(fit_gap, rdata = opd_16_EST)
+gap_16_FIN <- update(fit_gap, rdata = opd_16_FIN)
+gap_16_HKG <- update(fit_gap, rdata = opd_16_HKG)
+gap_16_ITA <- update(fit_gap, rdata = opd_16_ITA)
+gap_16_KOR <- update(fit_gap, rdata = opd_16_KOR)
+gap_16_LVA <- update(fit_gap, rdata = opd_16_LVA)
+gap_16_LTU <- update(fit_gap, rdata = opd_16_LTU)
+gap_16_MLT <- update(fit_gap, rdata = opd_16_MLT)
+gap_16_MEX <- update(fit_gap, rdata = opd_16_MEX)
+gap_16_NLD <- update(fit_gap, rdata = opd_16_NLD)
+gap_16_NOR <- update(fit_gap, rdata = opd_16_NOR)
+gap_16_PER <- update(fit_gap, rdata = opd_16_PER)
+gap_16_RUS <- update(fit_gap, rdata = opd_16_RUS)
+gap_16_SVN <- update(fit_gap, rdata = opd_16_SVN)
+gap_16_SWE <- update(fit_gap, rdata = opd_16_SWE)
+gap_16_BFL <- update(fit_gap, rdata = opd_16_BFL)
+gap_16_DNW <- update(fit_gap, rdata = opd_16_DNW)
+
+# ---------------------------------------- 
+# fit models
+# ---------------------------------------- 
+
+fit_16_BGR <- mplusModeler(gap_16_BGR, modelout = 'fit_16_BGR.inp', run = 1L, hashfilename = FALSE)
+fit_16_CHL <- mplusModeler(gap_16_CHL, modelout = 'fit_16_CHL.inp', run = 1L, hashfilename = FALSE)
+fit_16_TWN <- mplusModeler(gap_16_TWN, modelout = 'fit_16_TWN.inp', run = 1L, hashfilename = FALSE)
+fit_16_COL <- mplusModeler(gap_16_COL, modelout = 'fit_16_COL.inp', run = 1L, hashfilename = FALSE)
+fit_16_HRV <- mplusModeler(gap_16_HRV, modelout = 'fit_16_HRV.inp', run = 1L, hashfilename = FALSE)
+fit_16_DNK <- mplusModeler(gap_16_DNK, modelout = 'fit_16_DNK.inp', run = 1L, hashfilename = FALSE)
+fit_16_DOM <- mplusModeler(gap_16_DOM, modelout = 'fit_16_DOM.inp', run = 1L, hashfilename = FALSE)
+fit_16_EST <- mplusModeler(gap_16_EST, modelout = 'fit_16_EST.inp', run = 1L, hashfilename = FALSE)
+fit_16_FIN <- mplusModeler(gap_16_FIN, modelout = 'fit_16_FIN.inp', run = 1L, hashfilename = FALSE)
+fit_16_HKG <- mplusModeler(gap_16_HKG, modelout = 'fit_16_HKG.inp', run = 1L, hashfilename = FALSE)
+fit_16_ITA <- mplusModeler(gap_16_ITA, modelout = 'fit_16_ITA.inp', run = 1L, hashfilename = FALSE)
+fit_16_KOR <- mplusModeler(gap_16_KOR, modelout = 'fit_16_KOR.inp', run = 1L, hashfilename = FALSE)
+fit_16_LVA <- mplusModeler(gap_16_LVA, modelout = 'fit_16_LVA.inp', run = 1L, hashfilename = FALSE)
+fit_16_LTU <- mplusModeler(gap_16_LTU, modelout = 'fit_16_LTU.inp', run = 1L, hashfilename = FALSE)
+fit_16_MLT <- mplusModeler(gap_16_MLT, modelout = 'fit_16_MLT.inp', run = 1L, hashfilename = FALSE)
+fit_16_MEX <- mplusModeler(gap_16_MEX, modelout = 'fit_16_MEX.inp', run = 1L, hashfilename = FALSE)
+fit_16_NLD <- mplusModeler(gap_16_NLD, modelout = 'fit_16_NLD.inp', run = 1L, hashfilename = FALSE)
+fit_16_NOR <- mplusModeler(gap_16_NOR, modelout = 'fit_16_NOR.inp', run = 1L, hashfilename = FALSE)
+fit_16_PER <- mplusModeler(gap_16_PER, modelout = 'fit_16_PER.inp', run = 1L, hashfilename = FALSE)
+fit_16_RUS <- mplusModeler(gap_16_RUS, modelout = 'fit_16_RUS.inp', run = 1L, hashfilename = FALSE)
+fit_16_SVN <- mplusModeler(gap_16_SVN, modelout = 'fit_16_SVN.inp', run = 1L, hashfilename = FALSE)
+fit_16_SWE <- mplusModeler(gap_16_SWE, modelout = 'fit_16_SWE.inp', run = 1L, hashfilename = FALSE)
+fit_16_BFL <- mplusModeler(gap_16_BFL, modelout = 'fit_16_BFL.inp', run = 1L, hashfilename = FALSE)
+fit_16_DNW <- mplusModeler(gap_16_DNW, modelout = 'fit_16_DNW.inp', run = 1L, hashfilename = FALSE)
+
+
+```
+
+
+# Estimated times
+
+```{r , echo=FALSE, include=FALSE}
+
+# ---------------------------------------- 
+# estimated times
+# ---------------------------------------- 
+
+# get current time
+end_time <- Sys.time()
+
+# create table
+time_table <- data.frame(
+  events = c('start', 'end'),
+  times = c(start_time, end_time)
+  )
+
+```
+
+
+```{r , echo=TRUE}
+
+# ---------------------------------------- 
+# starts and end times
+# ---------------------------------------- 
+
+# display time
+knitr::kable(time_table, align = 'r') 
+
+
+# ---------------------------------------- 
+# estimated times in minutes
+# ---------------------------------------- 
+
+difftime(end_time, start_time, units="mins")
+
+```
+
+
+

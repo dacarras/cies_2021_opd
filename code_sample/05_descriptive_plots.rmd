@@ -1,0 +1,359 @@
+---
+title: "Code 5: descriptives plots"
+subtitle: "CIES 2021: not everyone has the chance"
+author: "dacarras"
+date: 'April 29th, 2021'
+output:
+  html_document:
+    theme: paper
+    highlight: kate
+    number_sections: true
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    fig_width: 10 
+    fig_height: 8 
+---
+
+
+<style>
+  .main-container {
+    max-width: 1600px !important;
+  }
+  .list-group-item.active, 
+  .list-group-item.active:focus, 
+  .list-group-item.active:hover {
+    background-color: #373334;
+  }
+</style>
+
+
+
+```{r setup, include=FALSE}
+#------------------------------------------------------------------------------
+# setup
+#------------------------------------------------------------------------------
+
+# knitr option
+knitr::opts_chunk$set(dev = 'png')
+options(knitr.kable.NA = '', digits = 2)
+
+# set appropiate time zone via OlsonNames()
+Sys.setenv(TZ="America/Santiago")
+Sys.getenv("TZ")
+Sys.time()
+
+# fonts
+Sys.setenv(LANG="en_US.UTF-8")
+
+# load main library
+library(dplyr)
+
+
+# ---------------------------------------------------------
+# get times
+# ---------------------------------------------------------
+
+start_time <- Sys.time()
+
+```
+
+
+
+# Libraries
+
+## What libraries are used in the present code
+
+```{r , echo=TRUE, warning=FALSE, eval = FALSE}
+
+#------------------------------------------------------------------------------
+# libraries
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# libraries for this code
+# ---------------------------------------------------------
+
+install.packages('tidyverse')
+# many libraries for data management
+
+install.packages('haven')     
+# library to open SPSS, STATA, and SAS files
+
+install.packages('labelled')     
+# library to add variable labels to data frames
+
+install.packages('devtools')  
+# to install developmental libraries
+
+install.packages('MplusAutomation')     
+# library to fit model in MPLUS from R
+
+devtools::install_github("dacarras/r4sda") 
+# experimental library for analysis of secondary data
+
+```
+
+
+
+# File Locations
+
+## Folders
+
+```{r , echo=TRUE, warning=FALSE}
+
+#------------------------------------------------------------------------------
+# folders
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# get local path from relative path
+# ---------------------------------------------------------
+
+local_path <- function(x){
+paste0(tools::file_path_as_absolute('..'),x)  
+}
+
+# Note: set current directory as working directory
+#       e.g. `setwd("/Users/d/cies_2021_opd/01_syntax/")`
+#       When a rmd file is run in Rstudio, current directory
+#       is the working directory.
+
+
+# ---------------------------------------------------------
+# relative position of folders
+# ---------------------------------------------------------
+
+# 00_data
+# 01_syntax
+# 02_mplus
+# 03_figures
+
+# ---------------------------------------------------------
+# folder with data files
+# ---------------------------------------------------------
+
+data_folder      <- local_path('/00_data/')
+output_folder    <- local_path('/01_syntax/')
+plot_folder      <- local_path('/02_figures/')
+
+# ---------------------------------------------------------
+# load main library
+# ---------------------------------------------------------
+
+library(dplyr)
+
+# ---------------------------------------------------------
+# check folder
+# ---------------------------------------------------------
+
+list.files(data_folder)
+
+```
+
+
+## Load files
+
+```{r , echo=TRUE}
+
+#------------------------------------------------------------------------------
+# load data
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# files
+# ---------------------------------------------------------
+
+opd_09 <- readRDS(paste0(data_folder, 'data_opd_09.rds')) %>%
+             r4sda::remove_labels()
+
+opd_16 <- readRDS(paste0(data_folder, 'data_opd_16.rds')) %>%
+             r4sda::remove_labels()
+
+# ----------------------------------------------- 
+# data frame dimensions
+# -----------------------------------------------
+
+data.frame(
+  data = c('iccs 2009', 'iccs 2016'),
+  rows = c(nrow(opd_09), nrow(opd_16)),
+  columns = c(ncol(opd_09), ncol(opd_16))
+  ) %>%
+knitr::kable(., digits = 2)
+
+
+# ----------------------------------------------- 
+# main library
+# -----------------------------------------------
+
+library(dplyr)
+
+```
+
+# Plot as a function
+
+```{r echo=FALSE}
+
+#------------------------------------------------------------------------------
+# make grid plot
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------
+# selected data
+#------------------------------------------------
+
+plot_effects <- function(data, country, file_name){
+
+#------------------------------------------------
+# objects
+#------------------------------------------------
+
+country_text <- country
+file_text    <- file_name
+
+#------------------------------------------------
+# create data plot
+#------------------------------------------------
+
+data_plot <- dplyr::filter(data, COUNTRY == country_text)
+
+#------------------------------------------------
+# plot 1
+#------------------------------------------------
+
+library(ggplot2)
+p1 <- ggplot(data_plot, aes(
+  y = opd_m, 
+  x = ses_m)) + 
+geom_point(alpha = .15) + 
+      ylim(c(-3,3)) +
+      xlim(c(-3,3)) +
+      theme_bw() + 
+      theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "none"
+        ) +
+      ylab(expression(opd[ij]~ - ~bar(opd)[..])) +
+      xlab(expression(ses[ij]~ - ~bar(ses)[..])) +
+      geom_smooth(
+        se = TRUE, method = lm, colour = '#F02D3A') +
+      ggtitle(
+        'population model'
+        ) +
+      theme(plot.title = element_text(hjust = 0.5))
+
+
+#------------------------------------------------
+# plot 2
+#------------------------------------------------
+
+library(ggplot2)
+p2 <- ggplot(data_plot, aes(
+  y = opd_w, 
+  x = ses_w)) + 
+geom_point(alpha = .15) + 
+      ylim(c(-3,3)) +
+      xlim(c(-3,3)) +
+      theme_bw() + 
+      theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "none"
+        ) +
+      ylab(expression(opd[ij]~ - ~bar(opd)[.j])) +
+      xlab(expression(ses[ij]~ - ~bar(ses)[.j])) +
+      geom_smooth(
+        se = TRUE, method = lm, colour = '#F02D3A') +
+      ggtitle(
+        'within school model'
+        ) +
+      theme(plot.title = element_text(hjust = 0.5))
+
+#------------------------------------------------
+# plot 3
+#------------------------------------------------
+
+library(ggplot2)
+p3 <- ggplot(data_plot, aes(
+  y = opd_b, 
+  x = ses_b)) + 
+geom_point(alpha = .03) + 
+      ylim(c(-3,3)) +
+      xlim(c(-3,3)) +
+      theme_bw() + 
+      theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "none"
+        ) +
+      ylab(expression(bar(opd)[.j]~ - ~bar(opd)[..])) +
+      xlab(expression(bar(ses)[.j]~ - ~bar(ses)[..])) +
+      geom_smooth(
+        se = TRUE, method = lm, colour = '#F02D3A') +
+      ggtitle(
+        'between school model'
+        ) +
+      theme(plot.title = element_text(hjust = 0.5))
+
+#------------------------------------------------
+# grid plot
+#------------------------------------------------
+
+cowplot::plot_grid(p1, p2, p3, ncol=3)
+
+#------------------------------------------------
+# save plot
+#------------------------------------------------
+
+ggsave(paste0(plot_folder,file_text,'.png'),
+     plot   = last_plot(), 
+     width  = 16, 
+     height = 10, 
+     units  = 'cm',
+     dpi    = 400,
+     scale  = 2)
+
+#------------------------------------------------
+# display plot
+#------------------------------------------------
+
+return(cowplot::plot_grid(p1, p2, p3, ncol=3))
+
+}
+
+
+#------------------------------------------------
+# list of countries
+#------------------------------------------------
+
+dplyr::count(opd_09, COUNTRY) %>%
+knitr::kable(.)
+
+dplyr::count(opd_16, COUNTRY) %>%
+knitr::kable(.)
+
+
+```
+
+# Selected Plot
+
+```{r echo=FALSE}
+
+#------------------------------------------------------------------------------
+# make grid plot
+#------------------------------------------------------------------------------
+
+
+plot_effects(data = opd_09, country = 'PRY', 'pry_2009')
+plot_effects(data = opd_09, country = 'HKG', 'hkg_2009')
+plot_effects(data = opd_09, country = 'BFL', 'bfl_2009')
+  
+
+```
+

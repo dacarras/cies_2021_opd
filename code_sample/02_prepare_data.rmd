@@ -1,0 +1,497 @@
+---
+title: "Code 2: prepare data"
+subtitle: "CIES 2021: not everyone has the chance"
+author: "dacarras"
+date: 'April 29th, 2021'
+output:
+  html_document:
+    theme: paper
+    highlight: kate
+    number_sections: true
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    fig_width: 10 
+    fig_height: 8 
+---
+
+<style>
+  .main-container {
+    max-width: 1600px !important;
+  }
+  .list-group-item.active, 
+  .list-group-item.active:focus, 
+  .list-group-item.active:hover {
+    background-color: #373334;
+  }
+</style>
+
+
+
+```{r setup, include=FALSE}
+#------------------------------------------------------------------------------
+# setup
+#------------------------------------------------------------------------------
+
+# knitr option
+knitr::opts_chunk$set(dev = 'png')
+options(knitr.kable.NA = '', digits = 2)
+
+
+# set appropiate time zone via OlsonNames()
+Sys.setenv(TZ="America/Santiago")
+Sys.getenv("TZ")
+Sys.time()
+
+# fonts
+Sys.setenv(LANG="en_US.UTF-8")
+
+# load main library
+library(dplyr)
+
+
+# ---------------------------------------------------------
+# get times
+# ---------------------------------------------------------
+
+start_time <- Sys.time()
+
+```
+
+
+# Libraries
+
+## What libraries are used in the present code
+
+```{r , echo=TRUE, warning=FALSE, eval = FALSE}
+
+#------------------------------------------------------------------------------
+# libraries
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# libraries for this code
+# ---------------------------------------------------------
+
+install.packages('tidyverse')
+# many libraries for data management
+
+install.packages('haven')     
+# library to open SPSS, STATA, and SAS files
+
+install.packages('labelled')     
+# library to add variable labels to data frames
+
+install.packages('devtools')  
+# to install developmental libraries
+
+devtools::install_github("dacarras/r4sda") 
+# experimental library for analysis of secondary data
+
+```
+
+
+
+# File Locations
+
+## Folders
+
+```{r , echo=TRUE, warning=FALSE}
+
+#------------------------------------------------------------------------------
+# folders
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# get local path from relative path
+# ---------------------------------------------------------
+
+local_path <- function(x){
+paste0(tools::file_path_as_absolute('..'),x)  
+}
+
+# Note: set current directory as working directory
+#       e.g. `setwd("/Users/d/cies_2021_opd/01_syntax/")`
+#       When a rmd file is run in Rstudio, current directory
+#       is the working directory.
+
+
+# ---------------------------------------------------------
+# relative position of folders
+# ---------------------------------------------------------
+
+# 00_data
+# 01_syntax
+# 02_mplus
+# 03_figures
+
+# ---------------------------------------------------------
+# folder with data files
+# ---------------------------------------------------------
+
+data_folder      <- local_path('/00_data/')
+syntax_folder    <- local_path('/01_syntax/')
+plot_folder      <- local_path('/03_figures/')
+
+# ---------------------------------------------------------
+# load main library
+# ---------------------------------------------------------
+
+library(dplyr)
+
+# ---------------------------------------------------------
+# check folder
+# ---------------------------------------------------------
+
+list.files(data_folder)
+
+```
+
+
+
+# Problem 3: survey design variables
+
+- ILSA studies include different variables to express the survey design
+- These variables need to be treated to enable modelling of multiple country data frames.
+
+## Code 03: survey design variables
+
+- The present code generates clustering variables that are unique across countries
+- Additionally, it creates scaled up survey weights:
+  + senate weights scaled up to a 1000
+  + within and between school weights for pseudo maximum likelihood estimation of multilevel models, that make use of the survey design.
+
+
+```{r, echo=TRUE}
+
+# -----------------------------------------------------------------------------
+# survey design variables
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------
+# load data
+# -----------------------------------------------
+
+data_09 <- readRDS(paste0(data_folder, 'iccs_2009_stu_int.rds'))
+
+# -----------------------------------------------
+# generic survey design variables
+# -----------------------------------------------
+
+library(dplyr)
+data_model_09 <- data_09 %>%
+                 # remove labels
+                 r4sda::remove_labels() %>%
+                 # clustering
+                 mutate(id_i = seq(1:nrow(.))) %>%
+                 mutate(id_j = as.numeric(as.factor(paste0(COUNTRY, JKZONES, IDSCHOOL)))) %>%
+                 mutate(id_s = as.numeric(as.factor(paste0(COUNTRY, JKZONES)))) %>%
+                 mutate(id_r = as.numeric(as.factor(paste0(COUNTRY, JKZONES, JKREPS)))) %>%
+                 mutate(id_k = as.numeric(as.factor(paste0(COUNTRY)))) %>%
+                 # survey weights
+                 mutate(wt = TOTWGTS) %>%
+                 # students weights
+                 mutate(wi = WGTFAC2S*WGTADJ2S*WGTADJ3S) %>%
+                 # school weights
+                 mutate(wj = WGTFAC1*WGTADJ1S) %>%
+                 # create senate weights
+                 r4sda::senate_weights(., wt = 'wt', id_k = 'id_k', scale = 1000) %>%
+                 # create scaled weights
+                 r4sda::lsa_weights(., 
+                   id_i = 'id_i', 
+                   id_j = 'id_j', 
+                   id_k = 'id_k', 
+                   wt = 'wt', 
+                   wi = 'wi', 
+                   wj = 'wj') %>%
+                 dplyr::glimpse()
+
+# -----------------------------------------------
+# check clustering assumptions
+# -----------------------------------------------
+
+# strata are unique across countries
+data_model_09 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_s', cluster_2 = 'id_k')
+
+# schools are unique across countries
+data_model_09 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_j', cluster_2 = 'id_k')
+
+# schools are unique across strata
+data_model_09 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_j', cluster_2 = 'id_s')
+
+# psu are unique across countries
+data_model_09 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_r', cluster_2 = 'id_k')
+
+# psu are unique across strata
+data_model_09 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_r', cluster_2 = 'id_s')
+
+# -----------------------------------------------
+# load data
+# -----------------------------------------------
+
+data_16 <- readRDS(paste0(data_folder, 'iccs_2016_stu_int.rds'))
+
+# -----------------------------------------------
+# generic survey design variables
+# -----------------------------------------------
+
+library(dplyr)
+data_model_16 <- data_16 %>%
+                 # remove labels
+                 r4sda::remove_labels() %>%
+                 # clustering
+                 mutate(id_i = seq(1:nrow(.))) %>%
+                 mutate(id_j = as.numeric(as.factor(paste0(COUNTRY, JKZONES, IDSCHOOL)))) %>%
+                 mutate(id_s = as.numeric(as.factor(paste0(COUNTRY, JKZONES)))) %>%
+                 mutate(id_r = as.numeric(as.factor(paste0(COUNTRY, JKZONES, JKREPS)))) %>%
+                 mutate(id_k = as.numeric(as.factor(paste0(COUNTRY)))) %>%
+                 # survey weights
+                 mutate(wt = TOTWGTS) %>%
+                 # students weights
+                 mutate(wi = WGTFAC2S*WGTADJ2S*WGTADJ3S) %>%
+                 # school weights
+                 mutate(wj = WGTFAC1*WGTADJ1S) %>%
+                 # create senate weights
+                 r4sda::senate_weights(., wt = 'wt', id_k = 'id_k', scale = 1000) %>%
+                 # create scaled weights
+                 r4sda::lsa_weights(., 
+                   id_i = 'id_i', 
+                   id_j = 'id_j', 
+                   id_k = 'id_k', 
+                   wt = 'wt', 
+                   wi = 'wi', 
+                   wj = 'wj') %>%
+                 dplyr::glimpse()
+
+# -----------------------------------------------
+# check clustering assumptions
+# -----------------------------------------------
+
+# strata are unique across countries
+data_model_16 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_s', cluster_2 = 'id_k')
+
+# schools are unique across countries
+data_model_16 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_j', cluster_2 = 'id_k')
+
+# schools are unique across strata
+data_model_16 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_j', cluster_2 = 'id_s')
+
+# psu are unique across countries
+data_model_16 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_r', cluster_2 = 'id_k')
+
+# psu are unique across strata
+data_model_16 %>%
+r4sda::check_cluster_id(cluster_1 = 'id_r', cluster_2 = 'id_s')
+
+```
+
+
+# Problem 4: entried values may obstacle interpretation
+
+- In most scenarios in ILSA, data entry values for response alternatives are asigned from left to right.
+- Thus, conditional to the defined response alternatives order, if these values can be interpreted in attribute-like direction.
+- That is, if higher values always express higher agreement, higher endorsement, higher frequency, or else.
+- For the current illustration, we will recode the response values from Question 22 in ICCS 2016, the scale "What is good for democracy" (see Quaranta, 2019).
+
+## Code 04: compute variables
+
+- The following code first documents the item we will recode
+- Then, it rename the selected variable with a defined list of names
+- Afterwards, these values are recoded according to an interpretable scheme
+  + This interpretable scheme follows the Complex class response pattern from Quaranta (2019)
+- Finally, the recoded data frame is joined to the rest of the data
+- All new variables are assigned labels, so we can read later on what are these variables
+- A `data_model` data frame is save for later use
+
+
+```{r, echo=TRUE}
+
+# -----------------------------------------------------------------------------
+# computes
+# -----------------------------------------------------------------------------
+
+
+# ---------------------------------------- 
+# data for 2009
+# ---------------------------------------- 
+
+opd_09 <- data_model_09 %>%
+              # socioeconomic status
+              mutate(ses = r4sda::z_score(NISB)) %>%              # mean z score
+              mutate(ses_c = r4sda::c_mean(ses, id_j)) %>%        # means by clusters
+              mutate(ses_g = r4sda::c_wmean(ses, ws, id_k))  %>%  # grand mean
+              mutate(ses_m = ses - ses_g   )     %>%  # cgm
+              mutate(ses_w = ses - ses_c   )     %>%  # cwc
+              mutate(ses_b = ses_c - ses_g )     %>%  # centered school means
+              # open classroom discussion
+              ## opd scores in international scale
+              mutate(opd = (OPDISC-50)/10)                   %>% 
+              mutate(opd_c = r4sda::c_mean(opd, id_j))       %>%  # means by clusters
+              mutate(opd_g = r4sda::c_wmean(opd, ws, id_k))  %>%  # grand mean
+              mutate(opd_m = opd - opd_g   )     %>%  # cgm
+              mutate(opd_w = opd - opd_c   )     %>%  # within centering
+              mutate(opd_b = opd_c - opd_g )     %>%  # between centerin
+              glimpse()
+
+
+# ---------------------------------------- 
+# data for 2016
+# ---------------------------------------- 
+
+opd_16 <- data_model_16 %>%
+              # socioeconomic status
+              mutate(ses = r4sda::z_score(S_NISB)) %>%            # mean z score
+              mutate(ses_c = r4sda::c_mean(ses, id_j)) %>%        # means by clusters
+              mutate(ses_g = r4sda::c_wmean(ses, ws, id_k))  %>%  # grand mean
+              mutate(ses_m = ses - ses_g   )     %>%  # cgm
+              mutate(ses_w = ses - ses_c   )     %>%  # cwc
+              mutate(ses_b = ses_c - ses_g )     %>%  # centered school means
+              # open classroom discussion
+              ## opd scores in international scale
+              mutate(opd = (S_OPDISC-50)/10)                 %>% 
+              mutate(opd_c = r4sda::c_mean(opd, id_j))       %>% # means by clusters
+              mutate(opd_g = r4sda::c_wmean(opd, ws, id_k))  %>% # grand mean
+              mutate(opd_m = opd - opd_g   )     %>%  # cgm
+              mutate(opd_w = opd - opd_c   )     %>%  # within centering
+              mutate(opd_b = opd_c - opd_g )     %>%  # between centerin
+              glimpse()
+
+
+```
+
+# Problem 5: save data for modelling
+
+- With all the previous code, we now have a data frame that can be modelled in the way we desired. However, is not in the format that other sofwate we may need.
+
+- The following lines of code can help users to export the prepared data to other statistical packages including: STATA, MPLUS, and Latent Gold.
+
+- With the exported data, now we are ready for modelling!
+
+- In the current approach we wil just save the "`*.rds`" files, we will create individual files for modelling with mplus in the next code file.
+
+## Save data to RDS
+
+```{r, echo=TRUE}
+
+# -----------------------------------------------------------------------------
+# save data to RDS
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------
+# add missing variable labels
+# -----------------------------------------------
+
+opd_09 <- opd_09 %>%
+labelled::copy_labels(data_09, .) %>%
+labelled::set_variable_labels(id_k = 'unique country id') %>%
+labelled::set_variable_labels(id_s = 'unique strata id') %>%
+labelled::set_variable_labels(id_r = 'unique psu id') %>%
+labelled::set_variable_labels(id_j = 'unique school id') %>%
+labelled::set_variable_labels(id_i = 'unique student id') %>%
+labelled::set_variable_labels(wt  = 'weight, total weight for students') %>%
+labelled::set_variable_labels(wi  = 'weight, within schools') %>%
+labelled::set_variable_labels(wj  = 'weight, between schools') %>%
+labelled::set_variable_labels(wa1 = 'weight, within schools, normalized weights (method 2)') %>%
+labelled::set_variable_labels(wa2 = 'weight, between schools, normalized weights (method 2)') %>%
+labelled::set_variable_labels(wb1 = 'weight, within schools, effective sample size weights (method 1)') %>%
+labelled::set_variable_labels(wb2 = 'weight, between schools, effective sample size weights (method 1)') %>%
+labelled::set_variable_labels(ws  = 'weight, senate weight up to 1000 cases')
+
+# -----------------------------------------------
+# save variables table
+# -----------------------------------------------
+
+opd_09 %>%
+r4sda::variables_table() %>%
+openxlsx::write.xlsx(., paste0(data_folder,'data_opd_09_codebook.xlsx'))
+
+# -----------------------------------------------
+# save
+# -----------------------------------------------
+
+saveRDS(opd_09, paste0(data_folder,'data_opd_09.rds'))
+
+# -----------------------------------------------
+# add missing variable labels
+# -----------------------------------------------
+
+opd_16 <- opd_16 %>%
+labelled::copy_labels(data_16, .) %>%
+labelled::set_variable_labels(id_k = 'unique country id') %>%
+labelled::set_variable_labels(id_s = 'unique strata id') %>%
+labelled::set_variable_labels(id_r = 'unique psu id') %>%
+labelled::set_variable_labels(id_j = 'unique school id') %>%
+labelled::set_variable_labels(id_i = 'unique student id') %>%
+labelled::set_variable_labels(wt  = 'weight, total weight for students') %>%
+labelled::set_variable_labels(wi  = 'weight, within schools') %>%
+labelled::set_variable_labels(wj  = 'weight, between schools') %>%
+labelled::set_variable_labels(wa1 = 'weight, within schools, normalized weights (method 2)') %>%
+labelled::set_variable_labels(wa2 = 'weight, between schools, normalized weights (method 2)') %>%
+labelled::set_variable_labels(wb1 = 'weight, within schools, effective sample size weights (method 1)') %>%
+labelled::set_variable_labels(wb2 = 'weight, between schools, effective sample size weights (method 1)') %>%
+labelled::set_variable_labels(ws  = 'weight, senate weight up to 1000 cases')
+
+# -----------------------------------------------
+# save variables table
+# -----------------------------------------------
+
+opd_16 %>%
+r4sda::variables_table() %>%
+openxlsx::write.xlsx(., paste0(data_folder,'data_opd_16_codebook.xlsx'))
+
+# -----------------------------------------------
+# save
+# -----------------------------------------------
+
+saveRDS(opd_16, paste0(data_folder,'data_opd_16.rds'))
+
+```
+
+
+# Estimated times
+
+```{r , echo=FALSE, include=FALSE}
+
+# ---------------------------------------- 
+# estimated times
+# ---------------------------------------- 
+
+# get current time
+end_time <- Sys.time()
+
+# create table
+time_table <- data.frame(
+  events = c('start', 'end'),
+  times = c(start_time, end_time)
+  )
+
+# display time
+knitr::kable(time_table, align = 'r') 
+
+```
+
+
+
+```{r , echo=TRUE}
+
+# ---------------------------------------- 
+# estimated times
+# ---------------------------------------- 
+
+difftime(end_time, start_time, units="mins")
+
+
+```
+
+

@@ -1,0 +1,522 @@
+---
+title: "Code 4: get estimates"
+subtitle: "CIES 2021: not everyone has the chance"
+author: "dacarras"
+date: 'April 29th, 2021'
+output:
+  html_document:
+    theme: paper
+    highlight: kate
+    number_sections: true
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    fig_width: 10 
+    fig_height: 8 
+---
+
+
+<style>
+  .main-container {
+    max-width: 1600px !important;
+  }
+  .list-group-item.active, 
+  .list-group-item.active:focus, 
+  .list-group-item.active:hover {
+    background-color: #373334;
+  }
+</style>
+
+
+
+```{r setup, include=FALSE}
+#------------------------------------------------------------------------------
+# setup
+#------------------------------------------------------------------------------
+
+# knitr option
+knitr::opts_chunk$set(dev = 'png')
+options(knitr.kable.NA = '', digits = 2)
+
+# set appropiate time zone via OlsonNames()
+Sys.setenv(TZ="America/Santiago")
+Sys.getenv("TZ")
+Sys.time()
+
+# fonts
+Sys.setenv(LANG="en_US.UTF-8")
+
+# load main library
+library(dplyr)
+
+
+# ---------------------------------------------------------
+# get times
+# ---------------------------------------------------------
+
+start_time <- Sys.time()
+
+```
+
+# File Locations
+
+## Folders
+
+```{r , echo=TRUE, warning=FALSE}
+
+#------------------------------------------------------------------------------
+# folders
+#------------------------------------------------------------------------------
+
+# ---------------------------------------------------------
+# get local path from relative path
+# ---------------------------------------------------------
+
+local_path <- function(x){
+paste0(tools::file_path_as_absolute('..'),x)  
+}
+
+# Note: set current directory as working directory
+#       e.g. `setwd("/Users/d/cies_2021_opd/01_syntax/")`
+#       When a rmd file is run in Rstudio, current directory
+#       is the working directory.
+
+
+# ---------------------------------------------------------
+# relative position of folders
+# ---------------------------------------------------------
+
+# 00_data
+# 01_syntax
+# 02_mplus
+# 03_figures
+
+# ---------------------------------------------------------
+# folder with data files
+# ---------------------------------------------------------
+
+data_folder      <- local_path('/00_data/')
+syntax_folder    <- local_path('/01_syntax/')
+plot_folder      <- local_path('/02_figures/')
+
+# ---------------------------------------------------------
+# load main library
+# ---------------------------------------------------------
+
+library(dplyr)
+
+# ---------------------------------------------------------
+# check folder
+# ---------------------------------------------------------
+
+list.files(data_folder)
+
+```
+
+## Read estimates
+
+```{r , echo=TRUE}
+
+#------------------------------------------------------------------------------
+# read all estimates
+#------------------------------------------------------------------------------
+
+# real all
+model_estimates <- MplusAutomation::readModels(target = paste0(syntax_folder))
+
+# there should be 59 estimates models
+length(model_estimates)
+
+```
+
+## Standardized
+
+```{r , echo=TRUE}
+
+#------------------------------------------------------------------------------
+# extract estimates
+#------------------------------------------------------------------------------
+
+# ---------------------------------------- 
+# pseudo function to get estimates
+# ---------------------------------------- 
+
+get_est <- function(model_estimates, object) {
+
+require(dplyr)
+
+numeric <- object
+
+estimates <- model_estimates[[numeric]]$parameters$unstandardized %>%
+            dplyr::filter(param == 'SES_B') %>%
+            mutate(star = case_when(
+            pval < .001 ~ '***',
+            pval < .01  ~ '** ',
+            pval < .05  ~ '*  ',            
+            pval >= .05 ~ '')) %>%
+            mutate(dep = stringr::str_remove(paramHeader, '.ON')) %>%
+            mutate(cov = param) %>%
+            mutate(file = model_estimates[[numeric]]$summaries$Filename) %>%
+            dplyr::select(dep, cov, est, se, pval, star, file) 
+
+ci_level <- model_estimates[[numeric]]$parameters$ci.unstandardized %>%
+            dplyr::filter(param == 'SES_B') %>%
+            mutate(level = BetweenWithin) %>%
+            mutate(ll = low2.5) %>%
+            mutate(ul = up2.5) %>%
+            mutate(dep = stringr::str_remove(paramHeader, '.ON')) %>%
+            mutate(cov = param) %>%
+            dplyr::select(cov, ll, ul)
+
+table <- dplyr::left_join(estimates, ci_level, by = 'cov') %>%
+            mutate(ctry = stringr::str_remove(file, '.out')) %>%
+            mutate(ctry = stringr::str_remove(ctry, 'fit_09_')) %>%
+            mutate(ctry = stringr::str_remove(ctry, 'fit_16_')) %>%
+            mutate(year = dplyr::if_else(stringr::str_detect(file, '16'),'16','09')) %>%
+            dplyr::select(file, ctry, year, dep, cov, est, se, pval, star, ll, ul)
+
+return(table)
+
+}
+
+# ---------------------------------------- 
+# table of estimates
+# ---------------------------------------- 
+
+estimates_table <- dplyr::bind_rows(
+                   get_est(model_estimates, 1),
+                   get_est(model_estimates, 2),
+                   get_est(model_estimates, 3),
+                   get_est(model_estimates, 4),
+                   get_est(model_estimates, 5),
+                   get_est(model_estimates, 6),
+                   get_est(model_estimates, 7),
+                   get_est(model_estimates, 8),
+                   get_est(model_estimates, 9),
+                   get_est(model_estimates, 10),
+                   get_est(model_estimates, 11),
+                   get_est(model_estimates, 12),
+                   get_est(model_estimates, 13),
+                   get_est(model_estimates, 14),
+                   get_est(model_estimates, 15),
+                   get_est(model_estimates, 16),
+                   get_est(model_estimates, 17),
+                   get_est(model_estimates, 18),
+                   get_est(model_estimates, 19),
+                   get_est(model_estimates, 20),
+                   get_est(model_estimates, 21),
+                   get_est(model_estimates, 22),
+                   get_est(model_estimates, 23),
+                   get_est(model_estimates, 24),
+                   get_est(model_estimates, 25),
+                   get_est(model_estimates, 26),
+                   get_est(model_estimates, 27),
+                   get_est(model_estimates, 28),
+                   get_est(model_estimates, 29),
+                   get_est(model_estimates, 30),
+                   get_est(model_estimates, 31),
+                   get_est(model_estimates, 32),
+                   get_est(model_estimates, 33),
+                   get_est(model_estimates, 34),
+                   get_est(model_estimates, 35),
+                   get_est(model_estimates, 36),
+                   get_est(model_estimates, 37),
+                   get_est(model_estimates, 38),
+                   get_est(model_estimates, 39),
+                   get_est(model_estimates, 40),
+                   get_est(model_estimates, 41),
+                   get_est(model_estimates, 42),
+                   get_est(model_estimates, 43),
+                   get_est(model_estimates, 44),
+                   get_est(model_estimates, 45),
+                   get_est(model_estimates, 46),
+                   get_est(model_estimates, 47),
+                   get_est(model_estimates, 48),
+                   get_est(model_estimates, 49),
+                   get_est(model_estimates, 50),
+                   get_est(model_estimates, 51),
+                   get_est(model_estimates, 52),
+                   get_est(model_estimates, 53),
+                   get_est(model_estimates, 54),
+                   get_est(model_estimates, 55),
+                   get_est(model_estimates, 56),
+                   get_est(model_estimates, 57),
+                   get_est(model_estimates, 58),
+                   get_est(model_estimates, 59)
+                   )
+
+# ---------------------------------------- 
+# display estimates
+# ---------------------------------------- 
+
+knitr::kable(estimates_table, digits = 2, format = 'markdown')
+
+
+# ---------------------------------------- 
+# above zero gap
+# ---------------------------------------- 
+
+d00 <- estimates_table %>%
+       dplyr::filter(pval < .05) %>%
+       arrange(desc(est)) %>%
+       nrow()
+
+t00 <- estimates_table %>%
+       nrow()
+
+paste0(d00,' out of ', t00)
+
+
+# ---------------------------------------- 
+# above zero gap
+# ---------------------------------------- 
+
+d09 <- estimates_table %>%
+       dplyr::filter(year == '09') %>%
+       dplyr::filter(pval < .05) %>%
+       arrange(desc(est)) %>%
+       nrow()
+
+t09 <- estimates_table %>%
+       dplyr::filter(year == '09') %>%
+       nrow()
+
+paste0(d09,' out of ', t09)
+
+
+# ---------------------------------------- 
+# three largest
+# ---------------------------------------- 
+
+estimates_table %>%
+dplyr::filter(year == '09') %>%
+dplyr::filter(pval < .05) %>%
+arrange(desc(est)) %>%
+mutate(row = seq(1:nrow(.))) %>%
+dplyr::filter(row %in% c(1,2,3)) %>%
+knitr::kable(., digits = 2, format = 'markdown')
+
+
+
+# ---------------------------------------- 
+# above zero gap
+# ---------------------------------------- 
+
+d16 <- estimates_table %>%
+       dplyr::filter(year == '16') %>%
+       dplyr::filter(pval < .05) %>%
+       arrange(desc(est)) %>%
+       nrow()
+
+t16 <- estimates_table %>%
+       dplyr::filter(year == '16') %>%
+       nrow()
+
+paste0(d16,' out of ', t16)
+
+
+
+# ---------------------------------------- 
+# three largest
+# ---------------------------------------- 
+
+estimates_table %>%
+dplyr::filter(year == '16') %>%
+dplyr::filter(pval < .05) %>%
+arrange(desc(est)) %>%
+mutate(row = seq(1:nrow(.))) %>%
+dplyr::filter(row %in% c(1,2,3)) %>%
+knitr::kable(., digits = 2, format = 'markdown')
+
+
+```
+
+
+# Plot Estimates
+
+
+```{r , echo=TRUE}
+
+
+#------------------------------------------------------------------------------
+# plot estimates
+#------------------------------------------------------------------------------
+
+# plot function
+cred_plot_by <- function(d){
+
+require(ggplot2)
+
+p <- ggplot(d, aes(x=reorder(x,ylo), y=y)) +
+geom_linerange(aes(ymin = ylo, ymax = yhi), colour =  d$axis_text_colour) +
+geom_pointrange(aes(ymin = ylo, ymax = yhi), shape=15, colour =  d$axis_text_colour, size=.15) +
+geom_hline(yintercept = 0, linetype = 2, size=.15, colour = "red") +
+coord_flip() +
+ ylim(c(-1,1)) +
+ ylab('') +
+ xlab('') + 
+ theme(
+   panel.background = element_rect(fill = "white", colour = "grey50"),
+   panel.grid.major.y = element_blank(),
+   panel.grid.minor.y = element_blank(),
+   panel.border = element_rect(linetype = "solid", fill = NA, colour = 'grey50'),
+   axis.ticks.x=element_blank(),
+   axis.ticks.y=element_blank(),
+   axis.text.y = element_text(colour = d$axis_text_colour, size = 8),
+   axis.text.x = element_text(colour = "grey50", size = 9),
+   axis.title.x = element_text(colour = "grey50", size = 9),
+   axis.title.y = element_text(colour = "grey50", size = 9),
+   plot.title = element_text(hjust = 0.5, size = 10, colour='grey30')
+  )
+ return(p)
+}
+
+# -------------------------------------
+# confidence intervals
+# -------------------------------------
+
+plot_01 <- estimates_table %>%
+           mutate(x = paste0(ctry,'_',year)) %>%
+           mutate(y = est) %>%
+           mutate(ylo = ll) %>%
+           mutate(yhi = ul) %>%
+           dplyr::select(x, y, ylo, yhi) %>%
+           mutate(axis_text_colour = 'grey50') %>%
+           arrange(ylo)    
+
+# ------------------------------------------------------------
+# generate plot as objects
+# ------------------------------------------------------------
+
+cred_plot_by(plot_01)
+
+
+# -------------------------------------
+# confidence intervals
+# -------------------------------------
+
+plot_02 <- estimates_table %>%
+           mutate(x = paste0(ctry,'_',year)) %>%
+           mutate(y = est) %>%
+           mutate(ylo = ll) %>%
+           mutate(yhi = ul) %>%
+           dplyr::select(x, y, ylo, yhi) %>%
+           mutate(axis_text_colour = if_else(ylo > 0, 'black','grey50')) %>%
+           arrange(ylo)    
+
+# ------------------------------------------------------------
+# generate plot as objects
+# ------------------------------------------------------------
+
+cred_plot_by(plot_02)
+
+
+# -------------------------------------
+# confidence intervals
+# -------------------------------------
+
+plot_03 <- estimates_table %>%
+           mutate(x = paste0(ctry,'_',year)) %>%
+           mutate(y = est) %>%
+           mutate(ylo = ll) %>%
+           mutate(yhi = ul) %>%
+           dplyr::select(x, y, ylo, yhi) %>%
+           mutate(axis_text_colour = if_else(ylo > 0, 'black','grey50')) %>%
+           mutate(axis_text_colour = case_when(
+            x == 'PRY_09' ~ 'red',
+            x == 'HKG_09' ~ 'red',
+            x == 'BFL_09' ~ 'red',
+            TRUE ~ axis_text_colour)) %>%
+           arrange(ylo)    
+
+# ------------------------------------------------------------
+# generate plot as objects
+# ------------------------------------------------------------
+
+cred_plot_by(plot_03)
+
+
+
+#------------------------------------------------------------------------------
+# plot estimates
+#------------------------------------------------------------------------------
+
+ggsave(paste0(plot_folder,'plot_01.png'),
+     plot   = cred_plot_by(plot_01),
+     width  = 18, 
+     height = 14, 
+     units  = 'cm',
+     dpi    = 400,
+     scale  = 1.5)
+
+ggsave(paste0(plot_folder,'plot_02.png'),
+     plot   = cred_plot_by(plot_02),
+     width  = 18, 
+     height = 14, 
+     units  = 'cm',
+     dpi    = 400,
+     scale  = 1.5)
+
+ggsave(paste0(plot_folder,'plot_03.png'),
+     plot   = cred_plot_by(plot_03),
+     width  = 18, 
+     height = 14, 
+     units  = 'cm',
+     dpi    = 400,
+     scale  = 1.5)
+
+# ------------------------------------------------------------
+# generate plot as objects
+# ------------------------------------------------------------
+
+estimates_table %>%
+dplyr::filter(ctry %in% c('PRY','HKG','BFL')) %>%
+dplyr::filter(year %in% '09') %>%
+knitr::kable(., digits = 2)
+
+
+```
+
+
+# Estimated times
+
+```{r , echo=FALSE, include=FALSE}
+
+# ---------------------------------------- 
+# estimated times
+# ---------------------------------------- 
+
+# get current time
+end_time <- Sys.time()
+
+# create table
+time_table <- data.frame(
+  events = c('start', 'end'),
+  times = c(start_time, end_time)
+  )
+
+```
+
+
+```{r , echo=TRUE}
+
+# ---------------------------------------- 
+# starts and end times
+# ---------------------------------------- 
+
+# display time
+knitr::kable(time_table, align = 'r') 
+
+
+# ---------------------------------------- 
+# estimated times in minutes
+# ---------------------------------------- 
+
+difftime(end_time, start_time, units="mins")
+
+```
+
+
+
+
